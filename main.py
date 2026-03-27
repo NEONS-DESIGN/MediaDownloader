@@ -119,13 +119,14 @@ def get_base_ydl_opts(cookie_path):
 			'Accept-Language': 'en-US,en;q=0.5',
 			'Sec-Fetch-Mode': 'navigate',
 		},
-		# 403回避の追加オプション
 		'extractor_args': {
 			'youtube': {
-				'player_client': ['android', 'web'],
-				'skip': ['dash', 'hls']
+				# 'ios'や'web'を含めることで、高画質ストリーム（DASH）を取得対象に戻します
+				'player_client': ['web', 'ios'],
+				# skip設定を削除（または空に）してDASH/HLSを有効化
+				'skip': []
 			}
-		}
+		},
 	}
 	if cookie_path:
 		opts['cookiefile'] = cookie_path
