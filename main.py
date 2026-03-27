@@ -106,6 +106,9 @@ def create_temp_cookie_file():
 
 def get_base_ydl_opts(cookie_path):
 	"""yt-dlpの基本オプション（403回避のための偽装設定を含む）"""
+	# Secretsからトークンを取得（設定されていない場合はNone）
+	po_token = st.secrets.get("PO_TOKEN")
+	visitor_data = st.secrets.get("VISITOR_DATA")
 	opts = {
 		'nocolor': True,
 		'quiet': False, # ログを見るためにFalseに
@@ -121,15 +124,23 @@ def get_base_ydl_opts(cookie_path):
 		},
 		'extractor_args': {
 			'youtube': {
-				# 'ios'や'web'を含めることで、高画質ストリーム（DASH）を取得対象に戻します
-				'player_client': ['web'],
-				# skip設定を削除（または空に）してDASH/HLSを有効化
-				'skip': []
+				# 取得したPO TokenとVisitor Dataを注入
+				'po_token': [f'web+{po_token}' if po_token else None],
+				'visitor_data': [visitor_data if visitor_data else None],
+				# クライアント設定（これらを組み合わせるのが現在のベストプラクティス）
+				'player_client': ['web', 'ios'],
 			}
 		},
+		'format': 'bestvideo+bestaudio/best',
+		'merge_output_format': 'mp4', # または選択した拡張子
 	}
 	if cookie_path:
 		opts['cookiefile'] = cookie_path
+	# Noneの要素を削除（トークンがない場合にエラーにならないよう）
+	if not po_token:
+		del opts['extractor_args']['youtube']['po_token']
+	if not visitor_data:
+		del opts['extractor_args']['youtube']['visitor_data']
 	return opts
 
 
