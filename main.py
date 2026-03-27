@@ -105,9 +105,7 @@ def create_temp_cookie_file():
 	return None
 
 def get_base_ydl_opts(cookie_path):
-	"""
-	Cookie, PO Token, Visitor Data を統合した最強のオプション設定
-	"""
+	"""Cookie, PO Token, Visitor Data を統合した最強のオプション設定"""
 	# 1. Streamlit Secrets からトークンを取得
 	# ※ 事前に Secrets 側に PO_TOKEN と VISITOR_DATA を登録しておく必要があります
 	po_token = st.secrets.get("PO_TOKEN")
@@ -115,10 +113,10 @@ def get_base_ydl_opts(cookie_path):
 
 	# 2. 抽出引数（extractor_args）の組み立て
 	youtube_dict = {
-		# 'web'クライアントに対してトークンを注入する形式
-		'player_client': ['web', 'ios', 'mweb'],
-		'player_skip': [], # 何もスキップせず全力を出す
-	}
+        # 'ios' がCookie非対応でスキップされるため、'android' や 'tv' を追加して優先順位を変更
+        'player_client': ['android', 'tv', 'web', 'mweb'],
+        'player_skip': [],
+    }
 
 	if po_token and visitor_data:
 		# トークンがある場合のみ追加（書式: "web+トークン"）
