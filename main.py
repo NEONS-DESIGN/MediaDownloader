@@ -105,42 +105,44 @@ def create_temp_cookie_file():
 	return None
 
 def get_base_ydl_opts(cookie_path):
-	"""yt-dlpの基本オプション（403回避のための偽装設定を含む）"""
-	# Secretsからトークンを取得（設定されていない場合はNone）
+	"""
+	Cookie, PO Token, Visitor Data を統合した最強のオプション設定
+	"""
+	# 1. Streamlit Secrets からトークンを取得
+	# ※ 事前に Secrets 側に PO_TOKEN と VISITOR_DATA を登録しておく必要があります
 	po_token = st.secrets.get("PO_TOKEN")
 	visitor_data = st.secrets.get("VISITOR_DATA")
+
+	# 2. 抽出引数（extractor_args）の組み立て
+	youtube_dict = {
+		# 'web'クライアントに対してトークンを注入する形式
+		'player_client': ['web', 'ios', 'mweb'],
+		'player_skip': [], # 何もスキップせず全力を出す
+	}
+
+	if po_token and visitor_data:
+		# トークンがある場合のみ追加（書式: "web+トークン"）
+		youtube_dict['po_token'] = [f"web+{po_token}"]
+		youtube_dict['visitor_data'] = [visitor_data]
+
 	opts = {
 		'nocolor': True,
-		'quiet': False, # ログを見るためにFalseに
+		'quiet': False,
 		'verbose': True,
 		'js_runtimes': {'node': {}},
 		'allow_remote_strings': True,
 		'remote_components': ['ejs:github'],
 		'headers': {
 			'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-			'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-			'Accept-Language': 'en-US,en;q=0.5',
-			'Sec-Fetch-Mode': 'navigate',
 		},
-		'extractor_args': {
-			'youtube': {
-				# 取得したPO TokenとVisitor Dataを注入
-				'po_token': [f'web+{po_token}' if po_token else None],
-				'visitor_data': [visitor_data if visitor_data else None],
-				# クライアント設定（これらを組み合わせるのが現在のベストプラクティス）
-				'player_client': ['web', 'ios'],
-			}
-		},
+		'extractor_args': {'youtube': youtube_dict},
+		# 映像と音声を最高品質で結合
 		'format': 'bestvideo+bestaudio/best',
-		'merge_output_format': 'mp4', # または選択した拡張子
 	}
+
 	if cookie_path:
 		opts['cookiefile'] = cookie_path
-	# Noneの要素を削除（トークンがない場合にエラーにならないよう）
-	if not po_token:
-		del opts['extractor_args']['youtube']['po_token']
-	if not visitor_data:
-		del opts['extractor_args']['youtube']['visitor_data']
+
 	return opts
 
 
