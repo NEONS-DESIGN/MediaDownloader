@@ -122,7 +122,7 @@ def get_base_ydl_opts(cookie_path):
 		'extractor_args': {
 			'youtube': {
 				# 'ios'や'web'を含めることで、高画質ストリーム（DASH）を取得対象に戻します
-				'player_client': ['web', 'ios'],
+				'player_client': ['web'],
 				# skip設定を削除（または空に）してDASH/HLSを有効化
 				'skip': []
 			}
