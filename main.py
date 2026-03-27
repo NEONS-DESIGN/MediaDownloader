@@ -110,7 +110,7 @@ if st.button("コンテンツ情報を解析"):
 		with st.spinner("URLを検証してメタデータを取得中..."):
 			try:
 				# download=False で実際のダウンロードは行わず情報だけ引き抜く
-				ydl_opts = {'nocolor': True, 'quiet': True, 'noplaylist': True, 'javascript_executor': 'node'}
+				ydl_opts = {'nocolor': True, 'quiet': True, 'noplaylist': True, 'js_runtimes': ['node'], 'javascript_executor': 'node'}
 				with yt_dlp.YoutubeDL(ydl_opts) as ydl:
 					info = ydl.extract_info(url_input, download=False)
 					st.session_state.video_info = info
@@ -224,6 +224,7 @@ elif st.session_state.video_info:
 				'outtmpl': f'{user_dir}/%(title)s.%(ext)s',
 				'progress_hooks': [hook],
 				'nocolor': True, 'quiet': True,
+				'js_runtimes': ['node'],
 				'javascript_executor': 'node'
 			}
 
