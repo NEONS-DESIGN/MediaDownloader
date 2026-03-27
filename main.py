@@ -108,11 +108,23 @@ def get_base_ydl_opts(cookie_path):
 	"""yt-dlpの基本オプション（403回避のための偽装設定を含む）"""
 	opts = {
 		'nocolor': True,
-		'quiet': True,
-		'js_runtimes': {'node': {}}, # Node.jsの利用を指定
-		'http_headers': {
-			# 一般的なブラウザからのアクセスを偽装
-			'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+		'quiet': False, # ログを見るためにFalseに
+		'verbose': True,
+		'js_runtimes': {'node': {}},
+		'allow_remote_strings': True,
+		'remote_components': ['ejs:github'],
+		'headers': {
+			'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+			'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+			'Accept-Language': 'en-US,en;q=0.5',
+			'Sec-Fetch-Mode': 'navigate',
+		},
+		# 403回避の追加オプション
+		'extractor_args': {
+			'youtube': {
+				'player_client': ['android', 'web'],
+				'skip': ['dash', 'hls']
+			}
 		}
 	}
 	if cookie_path:
