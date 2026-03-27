@@ -1,9 +1,12 @@
+import os
+
 import streamlit as st
 import yt_dlp
 import uuid
 import time
 import shutil
 import threading
+import tempfile
 import re
 import base64
 from pathlib import Path
@@ -65,7 +68,7 @@ if not any(t.name == "CleanupThread" for t in threading.enumerate()):
 
 
 # ==========================================
-# 4. ヘルパー関数 (バリデーション・エラー翻訳)
+# 4. ヘルパー関数 (バリデーション・エラー翻訳・Cookie処理)
 # ==========================================
 def is_valid_url(url):
 	"""入力文字列が一般的なURLの形式をしているかチェック"""
@@ -88,6 +91,34 @@ def translate_error(e):
 	# 該当しない場合は元エラーの先頭部分を表示
 	return f"予期しないエラーが発生しました: {str(e)[:100]}..."
 
+def create_temp_cookie_file():
+	"""Streamlit SecretsからCookie情報を読み込み、一時ファイルを作成する"""
+	try:
+		if hasattr(st, "secrets") and "YOUTUBE_COOKIES" in st.secrets:
+			# delete=Falseで作成し、使い終わったら手動で消す（Windows環境でのアクセスエラー回避のため）
+			tf = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt', encoding='utf-8')
+			tf.write(st.secrets["YOUTUBE_COOKIES"])
+			tf.close()
+			return tf.name
+	except Exception as e:
+		print(f"Cookie loading error: {e}")
+	return None
+
+def get_base_ydl_opts(cookie_path):
+	"""yt-dlpの基本オプション（403回避のための偽装設定を含む）"""
+	opts = {
+		'nocolor': True,
+		'quiet': True,
+		'js_runtimes': {'node': {}}, # Node.jsの利用を指定
+		'http_headers': {
+			# 一般的なブラウザからのアクセスを偽装
+			'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+		}
+	}
+	if cookie_path:
+		opts['cookiefile'] = cookie_path
+	return opts
+
 
 # ==========================================
 # 5. メインUI (ヘッダーとURL入力)
@@ -108,21 +139,20 @@ if st.button("コンテンツ情報を解析"):
 		st.session_state.is_loading = True
 
 		with st.spinner("URLを検証してメタデータを取得中..."):
+			cookie_path = create_temp_cookie_file()
 			try:
+				ydl_opts = get_base_ydl_opts(cookie_path)
+				ydl_opts['noplaylist'] = True
 				# download=False で実際のダウンロードは行わず情報だけ引き抜く
-				ydl_opts = {
-					'nocolor': True,
-					'quiet': True,
-					'noplaylist': True,
-					'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-					'js_runtimes': {'node': {}},
-					'javascript_executor': 'node'
-				}
 				with yt_dlp.YoutubeDL(ydl_opts) as ydl:
 					info = ydl.extract_info(url_input, download=False)
 					st.session_state.video_info = info
 			except Exception as e:
 				st.error(translate_error(e))
+			finally:
+				# 使い終わったCookieの一時ファイルを確実に削除
+				if cookie_path and os.path.exists(cookie_path):
+					os.remove(cookie_path)
 
 		st.session_state.is_loading = False
 
@@ -215,48 +245,41 @@ elif st.session_state.video_info:
 		user_dir.mkdir()
 		st.session_state.shared_progress[job_id] = 0.0
 
-		# --- スレッド内で実行される重い処理 ---
+		# --- スレッド内で実行されるタスク ---
 		def download_task(url, mode, ext, res, abr, user_dir, j_id, progress_dict):
-			# 進捗をリアルタイムに辞書へ書き込むフック
-			def hook(d):
-				if d['status'] == 'downloading':
-					p = d.get('downloaded_bytes', 0)
-					t = d.get('total_bytes') or d.get('total_bytes_estimate', 1)
-					progress_dict[j_id] = p / t
+			# スレッド内でもCookieファイルを作成（処理中に消えないようにするため）
+			task_cookie_path = create_temp_cookie_file()
 
-			h = res.replace('p','') if res and 'p' in str(res) else 'best'
-			audio_f = f"bestaudio[abr<={abr}]/bestaudio" if abr else "bestaudio"
+			try:
+				def hook(d):
+					if d['status'] == 'downloading':
+						p = d.get('downloaded_bytes', 0)
+						t = d.get('total_bytes') or d.get('total_bytes_estimate', 1)
+						progress_dict[j_id] = p / t
 
-			ydl_opts = {
-				'outtmpl': f'{user_dir}/%(title)s.%(ext)s',
-				'progress_hooks': [hook],
-				'nocolor': True, 'quiet': True,
-				'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-				# 1. JavaScriptランタイムをNode.jsに指定
-				'js_runtimes': {'node': {}},
-				# 2. リモートコンポーネント（解読スクリプト）のダウンロードを許可
-				'allow_remote_strings': True,
-				# 3. エラーにある推奨設定「ejs:github」を有効化
-				'remote_components': ['ejs:github']
-			}
+				ydl_opts = get_base_ydl_opts(task_cookie_path)
+				ydl_opts['outtmpl'] = f'{user_dir}/%(title)s.%(ext)s'
+				ydl_opts['progress_hooks'] = [hook]
 
-			# モード別のyt-dlpフォーマット指定
-			if mode == "動画 (映像+音声)":
-				ydl_opts['format'] = f'bestvideo[height<={h}][ext={ext}]+{audio_f}/best[height<={h}]'
-				ydl_opts['merge_output_format'] = ext
-			elif mode == "映像のみ":
-				ydl_opts['format'] = f'bestvideo[height<={h}][ext={ext}]/bestvideo'
-			else: # 音声のみ
-				ydl_opts['format'] = audio_f
-				ydl_opts['postprocessors'] = [{
-					'key': 'FFmpegExtractAudio',
-					'preferredcodec': ext,
-					'preferredquality': abr,
-				}]
+				h = res.replace('p','') if res and 'p' in str(res) else 'best'
+				audio_f = f"bestaudio[abr<={abr}]/bestaudio" if abr else "bestaudio"
 
-			with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-				res_info = ydl.extract_info(url, download=True)
-				return ydl.prepare_filename(res_info)
+				if mode == "動画 (映像+音声)":
+					ydl_opts['format'] = f'bestvideo[height<={h}][ext={ext}]+{audio_f}/best[height<={h}]'
+					ydl_opts['merge_output_format'] = ext
+				elif mode == "映像のみ":
+					ydl_opts['format'] = f'bestvideo[height<={h}][ext={ext}]/bestvideo'
+				else:
+					ydl_opts['format'] = audio_f
+					ydl_opts['postprocessors'] = [{'key': 'FFmpegExtractAudio', 'preferredcodec': ext, 'preferredquality': abr}]
+
+				with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+					res_info = ydl.extract_info(url, download=True)
+					return ydl.prepare_filename(res_info)
+			finally:
+				# 処理完了後、スレッド用のCookieファイルも削除
+				if task_cookie_path and os.path.exists(task_cookie_path):
+					os.remove(task_cookie_path)
 		# --------------------------------------
 
 		executor = get_executor()
