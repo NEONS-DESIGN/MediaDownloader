@@ -224,7 +224,6 @@ elif st.session_state.video_info:
 				'outtmpl': f'{user_dir}/%(title)s.%(ext)s',
 				'progress_hooks': [hook],
 				'nocolor': True, 'quiet': True,
-				'js_runtimes': {'node': {}},
 				# 1. JavaScriptランタイムをNode.jsに指定
 				'js_runtimes': {'node': {}},
 				'javascript_executor': 'node',
