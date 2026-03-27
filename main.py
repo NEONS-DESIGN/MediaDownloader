@@ -225,7 +225,13 @@ elif st.session_state.video_info:
 				'progress_hooks': [hook],
 				'nocolor': True, 'quiet': True,
 				'js_runtimes': {'node': {}},
-				'javascript_executor': 'node'
+				# 1. JavaScriptランタイムをNode.jsに指定
+				'js_runtimes': {'node': {}},
+				'javascript_executor': 'node',
+				# 2. リモートコンポーネント（解読スクリプト）のダウンロードを許可
+				'allow_remote_strings': True,
+				# 3. エラーにある推奨設定「ejs:github」を有効化
+				'remote_components': ['ejs:github']
 			}
 
 			# モード別のyt-dlpフォーマット指定
