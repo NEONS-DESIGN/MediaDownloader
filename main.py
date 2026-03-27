@@ -114,13 +114,13 @@ def get_base_ydl_opts(cookie_path):
 	# 2. 抽出引数（extractor_args）の組み立て
 	youtube_dict = {
         # 'ios' がCookie非対応でスキップされるため、'android' や 'tv' を追加して優先順位を変更
-        'player_client': ['android', 'tv', 'web', 'mweb'],
+        'player_client': ['web_music'],
         'player_skip': [],
     }
 
 	if po_token and visitor_data:
 		# トークンがある場合のみ追加（書式: "web+トークン"）
-		youtube_dict['po_token'] = [f"web+{po_token}"]
+		youtube_dict['po_token'] = [f"web_music.gvs+{po_token}"]
 		youtube_dict['visitor_data'] = [visitor_data]
 
 	opts = {
