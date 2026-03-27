@@ -150,7 +150,7 @@ def get_base_ydl_opts(cookie_path):
 # 5. メインUI (ヘッダーとURL入力)
 # ==========================================
 st.title("メディアダウンローダー")
-st.markdown("YouTube, Vimeo, Twitterなど様々なサイトの動画・音声を最高品質で保存します。")
+st.markdown("YouTube, ニコニコ動画, X(旧Twitter), Vimeo,など様々なサイトの動画・音声を最高品質で保存できます。")
 
 url_input = st.text_input("動画のURLを入力してください:", placeholder="https://...")
 
