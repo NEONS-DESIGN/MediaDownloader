@@ -110,7 +110,14 @@ if st.button("コンテンツ情報を解析"):
 		with st.spinner("URLを検証してメタデータを取得中..."):
 			try:
 				# download=False で実際のダウンロードは行わず情報だけ引き抜く
-				ydl_opts = {'nocolor': True, 'quiet': True, 'noplaylist': True, 'js_runtimes': {'node': {}}, 'javascript_executor': 'node'}
+				ydl_opts = {
+					'nocolor': True,
+					'quiet': True,
+					'noplaylist': True,
+					'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+					'js_runtimes': {'node': {}},
+					'javascript_executor': 'node'
+				}
 				with yt_dlp.YoutubeDL(ydl_opts) as ydl:
 					info = ydl.extract_info(url_input, download=False)
 					st.session_state.video_info = info
@@ -224,9 +231,9 @@ elif st.session_state.video_info:
 				'outtmpl': f'{user_dir}/%(title)s.%(ext)s',
 				'progress_hooks': [hook],
 				'nocolor': True, 'quiet': True,
+				'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
 				# 1. JavaScriptランタイムをNode.jsに指定
 				'js_runtimes': {'node': {}},
-				'javascript_executor': 'node',
 				# 2. リモートコンポーネント（解読スクリプト）のダウンロードを許可
 				'allow_remote_strings': True,
 				# 3. エラーにある推奨設定「ejs:github」を有効化
